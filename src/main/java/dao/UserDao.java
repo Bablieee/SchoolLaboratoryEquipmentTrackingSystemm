@@ -7,34 +7,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class UserDao {
-
-    // Create the required users table
-    public void createUsersTable() {
-
-        String sql = """
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    username TEXT NOT NULL UNIQUE,
-                    password TEXT NOT NULL,
-                    roles TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'PENDING'
-                )
-                """;
-
-        try (Connection connection = DatabaseConnection.getConnection();
-             Statement statement = connection.createStatement()) {
-
-            statement.execute(sql);
-            System.out.println("Users table created successfully!");
-
-        } catch (SQLException e) {
-            System.out.println("Database error: " + e.getMessage());
-        }
-    }
 
     // Register a new user
     public boolean registerUser(String name, String username,
@@ -95,5 +71,94 @@ public class UserDao {
         }
 
         return null;
+    }
+
+    // Get all registered users
+    public List<User> getAllUsers() {
+
+        List<User> users = new ArrayList<>();
+
+        String sql = """
+                SELECT id, name, username, password, roles, status
+                FROM users
+                ORDER BY id
+                """;
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet result = statement.executeQuery()) {
+
+            while (result.next()) {
+                users.add(new User(
+                        result.getInt("id"),
+                        result.getString("name"),
+                        result.getString("username"),
+                        result.getString("password"),
+                        result.getString("roles"),
+                        result.getString("status")
+                ));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error retrieving users: " + e.getMessage());
+        }
+
+        return users;
+    }
+
+    // Get all users with PENDING status
+    public List<User> getPendingUsers() {
+
+        List<User> users = new ArrayList<>();
+
+        String sql = """
+                SELECT id, name, username, password, roles, status
+                FROM users
+                WHERE status = 'PENDING'
+                ORDER BY id
+                """;
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet result = statement.executeQuery()) {
+
+            while (result.next()) {
+                users.add(new User(
+                        result.getInt("id"),
+                        result.getString("name"),
+                        result.getString("username"),
+                        result.getString("password"),
+                        result.getString("roles"),
+                        result.getString("status")
+                ));
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error retrieving pending users: " + e.getMessage());
+        }
+
+        return users;
+    }
+
+    // Approve a user account
+    public boolean approveUser(int userId) {
+
+        String sql = """
+                UPDATE users
+                SET status = 'APPROVED'
+                WHERE id = ?
+                """;
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            statement.setInt(1, userId);
+
+            return statement.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            System.out.println("Error approving user: " + e.getMessage());
+            return false;
+        }
     }
 }

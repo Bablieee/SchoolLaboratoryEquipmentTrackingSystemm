@@ -33,6 +33,7 @@ public class Authentication {
             String choice = scanner.nextLine();
 
             switch (choice) {
+
                 case "1" -> registerAccount();
 
                 case "2" -> {
@@ -46,11 +47,13 @@ public class Authentication {
                     running = false;
                 }
 
-                default -> System.out.println("\nInvalid choice. Please try again.");
+                default ->
+                        System.out.println("\nInvalid choice. Please try again.");
             }
         }
     }
 
+    // Register a new account
     private void registerAccount() {
 
         System.out.println("\n========== REGISTER ACCOUNT ==========");
@@ -101,6 +104,7 @@ public class Authentication {
         }
     }
 
+    // Login an existing user
     private boolean login() {
 
         System.out.println("\n========== LOGIN ==========");
@@ -125,61 +129,39 @@ public class Authentication {
         }
 
         System.out.println("\nLogin successful!");
-        System.out.println("Welcome, " + user.name() + "!");
+        System.out.println("Welcome, " + user.name());
         System.out.println("Role: " + user.role());
 
         return routeUser(user);
     }
 
+    // Route users to their corresponding menus
     private boolean routeUser(User user) {
 
-        String role = user.role().trim();
+        String role = user.role().trim().toUpperCase();
 
-        switch (role.toUpperCase()) {
+        switch (role) {
 
             case "ADMINISTRATOR" -> {
-                return showRoleMenu("ADMINISTRATOR MENU", user);
+                AdminMenu adminMenu = new AdminMenu(userDao, scanner);
+                return adminMenu.showMenu(user);
             }
 
             case "LABORATORY STAFF" -> {
-                return showRoleMenu("LABORATORY STAFF MENU", user);
+                LaboratoryStaffMenu staffMenu =
+                        new LaboratoryStaffMenu(scanner);
+                return staffMenu.showMenu(user);
             }
 
             case "EQUIPMENT VIEWER" -> {
-                return showRoleMenu("EQUIPMENT VIEWER MENU", user);
+                EquipmentViewerMenu viewerMenu =
+                        new EquipmentViewerMenu(scanner);
+                return viewerMenu.showMenu(user);
             }
 
             default -> {
-                System.out.println("Invalid user role.");
+                System.out.println("\nInvalid user role.");
                 return true;
-            }
-        }
-    }
-
-    private boolean showRoleMenu(String menuTitle, User user) {
-
-        while (true) {
-
-            System.out.println("\n===== " + menuTitle + " =====");
-            System.out.println("Welcome, " + user.name());
-            System.out.println("1. Logout");
-            System.out.println("2. Exit");
-            System.out.print("Choose an option: ");
-
-            String choice = scanner.nextLine();
-
-            switch (choice) {
-                case "1" -> {
-                    System.out.println("You have logged out.");
-                    return true;
-                }
-
-                case "2" -> {
-                    System.out.println("Exiting system...");
-                    return false;
-                }
-
-                default -> System.out.println("Invalid choice. Try again.");
             }
         }
     }
