@@ -7,31 +7,52 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ActivityLogDao {
 
-    // Record a system activity
+    // Record a system activity without an equipment ID
+    // Used for login, logout, and other activities.
     public void logAction(int userId, String actionType, String description) {
+
+        logAction(userId, null, actionType, description);
+    }
+
+    // Record a system activity with an equipment ID
+    public void logAction(
+            int userId,
+            Integer equipmentId,
+            String actionType,
+            String description) {
 
         String sql = """
                 INSERT INTO activity_logs
-                (user_id, action_type, description)
-                VALUES (?, ?, ?)
+                (user_id, equipment_id, action_type, description)
+                VALUES (?, ?, ?, ?)
                 """;
 
         try (Connection connection = DatabaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setInt(1, userId);
-            statement.setString(2, actionType);
-            statement.setString(3, description);
+
+            if (equipmentId == null) {
+                statement.setNull(2, Types.INTEGER);
+            } else {
+                statement.setInt(2, equipmentId);
+            }
+
+            statement.setString(3, actionType);
+            statement.setString(4, description);
 
             statement.executeUpdate();
 
         } catch (SQLException e) {
-            System.out.println("Failed to record activity: " + e.getMessage());
+            System.out.println(
+                    "Failed to record activity: " + e.getMessage()
+            );
         }
     }
 
@@ -51,9 +72,16 @@ public class ActivityLogDao {
 
             while (resultSet.next()) {
 
+                int equipmentIdValue = resultSet.getInt("equipment_id");
+
+                Integer equipmentId = resultSet.wasNull()
+                        ? null
+                        : equipmentIdValue;
+
                 logs.add(new ActivityLog(
                         resultSet.getInt("log_id"),
                         resultSet.getInt("user_id"),
+                        equipmentId,
                         resultSet.getString("action_type"),
                         resultSet.getString("description"),
                         resultSet.getString("timestamp")
@@ -61,7 +89,9 @@ public class ActivityLogDao {
             }
 
         } catch (SQLException e) {
-            System.out.println("Failed to retrieve activity logs: " + e.getMessage());
+            System.out.println(
+                    "Failed to retrieve activity logs: " + e.getMessage()
+            );
         }
 
         return logs;
@@ -87,9 +117,17 @@ public class ActivityLogDao {
 
                 while (resultSet.next()) {
 
+                    int equipmentIdValue =
+                            resultSet.getInt("equipment_id");
+
+                    Integer equipmentId = resultSet.wasNull()
+                            ? null
+                            : equipmentIdValue;
+
                     logs.add(new ActivityLog(
                             resultSet.getInt("log_id"),
                             resultSet.getInt("user_id"),
+                            equipmentId,
                             resultSet.getString("action_type"),
                             resultSet.getString("description"),
                             resultSet.getString("timestamp")
@@ -98,7 +136,9 @@ public class ActivityLogDao {
             }
 
         } catch (SQLException e) {
-            System.out.println("Failed to filter activity logs: " + e.getMessage());
+            System.out.println(
+                    "Failed to filter activity logs: " + e.getMessage()
+            );
         }
 
         return logs;
@@ -117,7 +157,9 @@ public class ActivityLogDao {
             return true;
 
         } catch (SQLException e) {
-            System.out.println("Failed to clear activity logs: " + e.getMessage());
+            System.out.println(
+                    "Failed to clear activity logs: " + e.getMessage()
+            );
             return false;
         }
     }
