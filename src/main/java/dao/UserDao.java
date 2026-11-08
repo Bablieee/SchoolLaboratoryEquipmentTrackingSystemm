@@ -12,6 +12,8 @@ import java.util.List;
 
 public class UserDao {
 
+    private final ActivityLogDao activityLogDao = new ActivityLogDao();
+
     // Register a new user
     public boolean registerUser(String name, String username,
                                 String password, String role) {
@@ -106,7 +108,7 @@ public class UserDao {
         return users;
     }
 
-    // Get all users with PENDING status
+    // Get pending registrations
     public List<User> getPendingUsers() {
 
         List<User> users = new ArrayList<>();
@@ -140,13 +142,13 @@ public class UserDao {
         return users;
     }
 
-    // Approve a user account
-    public boolean approveUser(int userId) {
+    // Approve a user account and record the administrator
+    public boolean approveUser(int userId, int adminId) {
 
         String sql = """
                 UPDATE users
                 SET status = 'APPROVED'
-                WHERE id = ?
+                WHERE id = ? AND status = 'PENDING'
                 """;
 
         try (Connection connection = DatabaseConnection.getConnection();
@@ -154,7 +156,18 @@ public class UserDao {
 
             statement.setInt(1, userId);
 
-            return statement.executeUpdate() > 0;
+            boolean success = statement.executeUpdate() > 0;
+
+            if (success) {
+                activityLogDao.logAction(
+                        adminId,
+                        "USER_APPROVED",
+                        "Admin [" + adminId
+                                + "] approved account for User ID " + userId
+                );
+            }
+
+            return success;
 
         } catch (SQLException e) {
             System.out.println("Error approving user: " + e.getMessage());
@@ -162,9 +175,9 @@ public class UserDao {
         }
     }
 
-    // Update a user's role and account status
+    // Update a user's role and status and record the administrator
     public boolean updateUserRoleAndStatus(
-            int userId, String newRole, String newStatus) {
+            int userId, String newRole, String newStatus, int adminId) {
 
         String sql = """
                 UPDATE users
@@ -179,7 +192,19 @@ public class UserDao {
             statement.setString(2, newStatus.toUpperCase());
             statement.setInt(3, userId);
 
-            return statement.executeUpdate() > 0;
+            boolean success = statement.executeUpdate() > 0;
+
+            if (success) {
+                activityLogDao.logAction(
+                        adminId,
+                        "USER_UPDATED",
+                        "Admin [" + adminId + "] updated User ID "
+                                + userId + ". New role: " + newRole
+                                + ", New status: " + newStatus
+                );
+            }
+
+            return success;
 
         } catch (SQLException e) {
             System.out.println("Error updating user: " + e.getMessage());

@@ -2,6 +2,7 @@
 package com.schoollaboratory.ui;
 
 import com.schoollaboratory.dao.UserDao;
+import com.schoollaboratory.dao.ActivityLogDao;
 import com.schoollaboratory.model.User;
 
 import java.util.Scanner;
@@ -9,10 +10,12 @@ import java.util.Scanner;
 public class Authentication {
 
     private final UserDao userDao;
+    private final ActivityLogDao activityLogDao;
     private final Scanner scanner;
 
     public Authentication(UserDao userDao, Scanner scanner) {
         this.userDao = userDao;
+        this.activityLogDao = new ActivityLogDao();
         this.scanner = scanner;
     }
 
@@ -34,31 +37,30 @@ public class Authentication {
 
             switch (choice) {
 
-                case "1" -> registerAccount();
+                case "1":
+                    registerAccount();
+                    break;
 
-                case "2" -> {
-                    if (!login()) {
-                        running = false;
-                    }
-                }
+                case "2":
+                    loginAccount();
+                    break;
 
-                case "3" -> {
-                    System.out.println("\nThank you for using the system!");
+                case "3":
                     running = false;
-                }
+                    System.out.println("Thank you for using the system!");
+                    break;
 
-                default ->
-                        System.out.println("\nInvalid choice. Please try again.");
+                default:
+                    System.out.println("Invalid choice. Please try again.");
             }
         }
     }
 
-    // Register a new account
     private void registerAccount() {
 
         System.out.println("\n========== REGISTER ACCOUNT ==========");
 
-        System.out.print("Enter Full Name: ");
+        System.out.print("Enter Name: ");
         String name = scanner.nextLine();
 
         System.out.print("Enter Username: ");
@@ -67,45 +69,45 @@ public class Authentication {
         System.out.print("Enter Password: ");
         String password = scanner.nextLine();
 
-        System.out.println("\nSelect User Role:");
-        System.out.println("1. ADMINISTRATOR");
-        System.out.println("2. LABORATORY STAFF");
-        System.out.println("3. EQUIPMENT VIEWER");
-        System.out.print("Enter your choice: ");
+        System.out.println("\nSelect Role:");
+        System.out.println("1. Laboratory Staff");
+        System.out.println("2. Equipment Viewer");
+        System.out.print("Enter choice: ");
 
         String roleChoice = scanner.nextLine();
         String role;
 
         switch (roleChoice) {
-            case "1" -> role = "ADMINISTRATOR";
-            case "2" -> role = "LABORATORY STAFF";
-            case "3" -> role = "EQUIPMENT VIEWER";
 
-            default -> {
-                System.out.println("\nInvalid role selection.");
+            case "1":
+                role = "LABORATORY STAFF";
+                break;
+
+            case "2":
+                role = "EQUIPMENT VIEWER";
+                break;
+
+            default:
+                System.out.println("Invalid role selection.");
                 return;
-            }
         }
 
         boolean registered = userDao.registerUser(
-                name, username, password, role
+                name,
+                username,
+                password,
+                role
         );
 
         if (registered) {
-            System.out.println("\nAccount registered successfully!");
-            System.out.println("Name: " + name);
-            System.out.println("Username: " + username);
-            System.out.println("Role: " + role);
-            System.out.println("Status: PENDING");
-            System.out.println("Please wait for administrator approval.");
+            System.out.println("Registration successful!");
+            System.out.println("Your account is waiting for administrator approval.");
         } else {
-            System.out.println("\nRegistration failed.");
-            System.out.println("Username may already exist.");
+            System.out.println("Registration failed. Username may already exist.");
         }
     }
 
-    // Login an existing user
-    private boolean login() {
+    private void loginAccount() {
 
         System.out.println("\n========== LOGIN ==========");
 
@@ -119,50 +121,73 @@ public class Authentication {
 
         if (user == null) {
             System.out.println("\nInvalid username or password.");
-            return true;
+            return;
         }
 
         if (!user.status().equalsIgnoreCase("APPROVED")) {
-            System.out.println("\nYour account is still PENDING.");
-            System.out.println("Please wait for administrator approval.");
-            return true;
+            System.out.println("\nYour account is not yet approved.");
+            return;
         }
 
         System.out.println("\nLogin successful!");
         System.out.println("Welcome, " + user.name());
         System.out.println("Role: " + user.role());
 
-        return routeUser(user);
+        // Record successful login
+        activityLogDao.logAction(
+                user.id(),
+                "USER_LOGIN",
+                "User " + user.username() + " (ID: " + user.id() + ") logged in."
+        );
+
+        routeUser(user);
     }
 
-    // Route users to their corresponding menus
-    private boolean routeUser(User user) {
+    private void routeUser(User user) {
 
-        String role = user.role().trim().toUpperCase();
+        boolean loggedOut = false;
 
-        switch (role) {
+        switch (user.role().toUpperCase()) {
 
-            case "ADMINISTRATOR" -> {
-                AdminMenu adminMenu = new AdminMenu(userDao, scanner);
-                return adminMenu.showMenu(user);
-            }
+            case "ADMINISTRATOR":
 
-            case "LABORATORY STAFF" -> {
+                AdminMenu adminMenu =
+                        new AdminMenu(userDao, scanner);
+
+                loggedOut = adminMenu.showMenu(user);
+                break;
+
+            case "LABORATORY STAFF":
+
                 LaboratoryStaffMenu staffMenu =
                         new LaboratoryStaffMenu(scanner);
-                return staffMenu.showMenu(user);
-            }
 
-            case "EQUIPMENT VIEWER" -> {
+                loggedOut = staffMenu.showMenu(user);
+                break;
+
+            case "EQUIPMENT VIEWER":
+
                 EquipmentViewerMenu viewerMenu =
                         new EquipmentViewerMenu(scanner);
-                return viewerMenu.showMenu(user);
-            }
 
-            default -> {
-                System.out.println("\nInvalid user role.");
-                return true;
-            }
+                loggedOut = viewerMenu.showMenu(user);
+                break;
+
+            default:
+                System.out.println("Invalid user role.");
+                return;
+        }
+
+        // Record logout only when the user selects Logout
+        if (loggedOut) {
+
+            activityLogDao.logAction(
+                    user.id(),
+                    "USER_LOGOUT",
+                    "User " + user.username() + " (ID: " + user.id() + ") logged out."
+            );
+
+            System.out.println("\nYou have successfully logged out.");
         }
     }
 }

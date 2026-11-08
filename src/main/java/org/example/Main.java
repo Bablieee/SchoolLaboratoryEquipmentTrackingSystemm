@@ -1,3 +1,4 @@
+
 package com.schoollaboratory;
 
 import com.schoollaboratory.dao.DatabaseInitializer;
@@ -11,7 +12,9 @@ public class Main {
     public static void main(String[] args) {
 
         // Initialize database
-        DatabaseInitializer databaseInitializer = new DatabaseInitializer();
+        DatabaseInitializer databaseInitializer =
+                new DatabaseInitializer();
+
         databaseInitializer.initialize();
 
         // Create shared instances
@@ -19,7 +22,9 @@ public class Main {
         Scanner scanner = new Scanner(System.in);
 
         // Start authentication
-        Authentication authentication = new Authentication(userDao, scanner);
+        Authentication authentication =
+                new Authentication(userDao, scanner);
+
         authentication.start();
 
         scanner.close();
